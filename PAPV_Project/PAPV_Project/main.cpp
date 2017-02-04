@@ -149,6 +149,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	ShowWindow(window, SW_SHOW);
 #pragma endregion
 
+#pragma region Device and SwapChain Init
 	DXGI_SWAP_CHAIN_DESC desc;
 	ZeroMemory(&desc, sizeof(DXGI_SWAP_CHAIN_DESC));
 	desc.BufferCount = 1;
@@ -174,6 +175,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 		&device,
 		NULL,
 		&deviceContext);
+#pragma endregion
 
 	ID3D11Resource *p_RT;
 	swapChain->GetBuffer(0, __uuidof(p_RT), reinterpret_cast<void**>(&p_RT));
@@ -348,7 +350,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	view.ProjectionMatrix = projection;
 
 
-
+#pragma region Buffer Creation
 	D3D11_SUBRESOURCE_DATA InitData;
 	InitData.pSysMem = ground;
 	InitData.SysMemPitch = 0;
@@ -367,6 +369,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	InitData.pSysMem = &light;
 	device->CreateBuffer(&lightBufferdesc, &InitData, &lightBuffer);
+#pragma endregion
 
 	device->CreateVertexShader(GroundShader_VS, sizeof(GroundShader_VS), nullptr, &groundVertshader);
 	device->CreatePixelShader(GroundShader_PS, sizeof(GroundShader_PS), nullptr, &groundPixshader);
@@ -393,6 +396,7 @@ bool WIN_APP::Run()
 
 	//light.camPosition = { toShader.ViewMatrix.r[3].m128_f32[0], toShader.ViewMatrix.r[3].m128_f32[1], toShader.ViewMatrix.r[3].m128_f32[2], toShader.ViewMatrix.r[3].m128_f32[3] };
 
+#pragma region Camera and Light Controls
 	if (GetAsyncKeyState(VK_SPACE))
 	{
 		XMMATRIX up = XMMatrixTranslation(0, 0.1f * 2, 0);
@@ -498,6 +502,7 @@ bool WIN_APP::Run()
 	view.ViewMatrix = XMMatrixInverse(0, view.ViewMatrix);
 
 	point = newPos;
+#pragma endregion
 
 	//deviceContext->ClearDepthStencilView(stencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
