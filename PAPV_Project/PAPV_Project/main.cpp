@@ -2,6 +2,8 @@
 #include <ctime>
 #include <Windows.h>
 #include <assert.h>
+#include <vector>
+#include <fbxsdk.h>
 
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
@@ -16,6 +18,11 @@ using namespace DirectX;
 
 #include "DDSTextureLoader.h"
 
+struct FBXVertex
+{
+	float pos[3];
+};
+
 class WIN_APP
 {
 	HRESULT							hr;
@@ -28,6 +35,7 @@ class WIN_APP
 	ID3D11RenderTargetView *RTV;
 	IDXGISwapChain *swapChain;
 	D3D11_VIEWPORT viewport;
+	
 
 	ID3D11InputLayout *groundInputlayout;
 
@@ -52,8 +60,16 @@ class WIN_APP
 		XMMATRIX ProjectionMatrix;
 	};
 
-	
+#pragma region FBX
+	//struct FBXVertex
+	//{
+	//	float pos[3];
+	//};
 
+	FbxManager* m_fbxManager = nullptr;
+#pragma endregion
+
+	
 	struct Light
 	{
 		XMFLOAT3 direction;
@@ -123,6 +139,74 @@ public:
 	bool ShutDown();
 };
 
+HRESULT LoadFBX(FbxManager* fbxman, const char* fileName, vector<FBXVertex>* outVertexVector)
+{
+	if (fbxman == nullptr)
+	{
+		fbxman = FbxManager::Create();
+
+		FbxIOSettings* m_IOSettings = FbxIOSettings::Create(fbxman, IOSROOT);
+		fbxman->SetIOSettings(m_IOSettings);
+	}
+
+	FbxImporter* m_import = FbxImporter::Create(fbxman, "");
+	FbxScene* m_scene = FbxScene::Create(fbxman, "");
+
+	//Add an FBX to the project
+	bool success = m_import->Initialize(fileName, -1, fbxman->GetIOSettings());
+	if (!success)
+	{
+		return E_FAIL;
+	}
+
+	success = m_import->Import(m_scene);
+	if (!success)
+	{
+		m_import->Destroy();
+	}
+
+	FbxNode* m_rootNode = m_scene->GetRootNode();
+	if (m_rootNode)
+	{
+		for (unsigned int i = 0; i < m_rootNode->GetChildCount(); i++)
+		{
+			FbxNode* m_childNode = m_rootNode->GetChild(i);
+			if (m_childNode->GetNodeAttribute() == NULL)
+			{
+				continue;
+			}
+
+			FbxNodeAttribute::EType attributeType = m_childNode->GetNodeAttribute()->GetAttributeType();
+			if (attributeType != FbxNodeAttribute::eMesh)
+			{
+				continue;
+			}
+
+			FbxMesh* m_mesh = (FbxMesh*)m_childNode->GetNodeAttribute();
+
+			FbxVector4* m_verts = m_mesh->GetControlPoints();
+
+			for (int y = 0; y < m_mesh->GetPolygonCount(); y++)
+			{
+				int numVerts = m_mesh->GetPolygonSize(y);
+				assert(numVerts == 3);
+
+				for (int z = 0; z < numVerts; z++)
+				{
+					int controlPointIndex = m_mesh->GetPolygonVertex(y, z);
+
+					FBXVertex vert;
+					vert.pos[0] = (float)m_verts[controlPointIndex].mData[0];
+					vert.pos[1] = (float)m_verts[controlPointIndex].mData[1];
+					vert.pos[2] = (float)m_verts[controlPointIndex].mData[2];
+					outVertexVector->push_back(vert);
+				}
+			}
+		}
+	}
+	return S_OK;
+}
+
 WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 {
 #pragma region Windows Init
@@ -190,6 +274,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.MinDepth = 0;
 	viewport.MaxDepth = 1;
 
+#pragma region Ground and Light Init
 	ground[0].pos.m128_f32[0] = -15;
 	ground[0].pos.m128_f32[1] = -5;
 	ground[0].pos.m128_f32[2] = -15;
@@ -337,6 +422,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundsampleDesc.BorderColor[1] = 1;
 	groundsampleDesc.BorderColor[2] = 1;
 	groundsampleDesc.BorderColor[3] = 1;
+#pragma endregion
 
 	device->CreateDepthStencilView(depthStencil, &stencilViewdesc, &stencilView);
 
@@ -387,7 +473,9 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	device->CreateInputLayout(groundLayout, ARRAYSIZE(groundLayout), GroundShader_VS, sizeof(GroundShader_VS), &groundInputlayout);
+	vector<FBXVertex>* test = new vector<FBXVertex>;
 
+	LoadFBX(m_fbxManager, "bone.fbx", test);
 
 }
 bool WIN_APP::Run()
