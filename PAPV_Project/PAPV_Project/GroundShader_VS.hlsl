@@ -44,6 +44,6 @@ OUT main(IN input)
 	output.uvOut = input.uvIn;
 	output.normalOut = mul((float3x3)WorldMatrix, input.normalIn);
 	output.normalOut = normalize(output.normalOut);
-	output.worldpos = Worldpos;
+	output.worldpos = Worldpos.xyz;
 	return output;
 }
