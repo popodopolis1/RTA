@@ -29,6 +29,12 @@
     <FxCompile Include="GroundShader_VS.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+    <FxCompile Include="SkyboxShader_PS.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="SkyboxShader_VS.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h">
@@ -37,6 +43,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="moon.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Skybox.dds">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

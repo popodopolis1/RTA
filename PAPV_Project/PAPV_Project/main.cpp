@@ -14,6 +14,8 @@ using namespace DirectX;
 
 #include "GroundShader_VS.csh"
 #include "GroundShader_PS.csh"
+#include "SkyboxShader_VS.csh"
+#include "SkyboxShader_PS.csh"
 
 #include "DDSTextureLoader.h"
 #include "Facade.h"
@@ -80,6 +82,7 @@ class WIN_APP
 	};
 	View view;
 	World groundWorld;
+	World skyboxWorld;
 	Light light;
 
 public:
@@ -93,17 +96,26 @@ public:
 	};
 
 	SIMPLE_VERTEX ground[4];
+	SIMPLE_VERTEX cube[8];
 
 	POINT point;
 
 	ID3D11Buffer * viewConstant;
 	D3D11_BUFFER_DESC viewConstdesc;
 
+	ID3D11ShaderResourceView *skyshaderView;
 	ID3D11ShaderResourceView *groundshaderView;
+
+	ID3D11SamplerState *skyboxSample;
+	D3D11_SAMPLER_DESC skysampleDesc;
 
 	ID3D11SamplerState *groundSample;
 	D3D11_SAMPLER_DESC groundsampleDesc;
 
+	ID3D11Buffer *skyVertex;
+	D3D11_BUFFER_DESC skyVertexdesc;
+	ID3D11Buffer *skyIndex;
+	D3D11_BUFFER_DESC skyIndexdesc;
 	ID3D11VertexShader *skyboxVertShader;
 	ID3D11PixelShader *skyboxPixShader;
 	ID3D11InputLayout *skyboxInputLayout;
@@ -313,6 +325,62 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 		1, 2, 3
 	};
 
+	cube[0].pos.m128_f32[0] = -2;
+	cube[0].pos.m128_f32[1] = -2;
+	cube[0].pos.m128_f32[2] = -2;
+	cube[0].pos.m128_f32[3] = 1;
+
+	cube[1].pos.m128_f32[0] = 2;
+	cube[1].pos.m128_f32[1] = -2;
+	cube[1].pos.m128_f32[2] = -2;
+	cube[1].pos.m128_f32[3] = 1;
+
+	cube[2].pos.m128_f32[0] = 2;
+	cube[2].pos.m128_f32[1] = 2;
+	cube[2].pos.m128_f32[2] = -2;
+	cube[2].pos.m128_f32[3] = 1;
+
+	cube[3].pos.m128_f32[0] = -2;
+	cube[3].pos.m128_f32[1] = 2;
+	cube[3].pos.m128_f32[2] = -2;
+	cube[3].pos.m128_f32[3] = 1;
+
+	cube[4].pos.m128_f32[0] = -2;
+	cube[4].pos.m128_f32[1] = -2;
+	cube[4].pos.m128_f32[2] = 2;
+	cube[4].pos.m128_f32[3] = 1;
+
+	cube[5].pos.m128_f32[0] = 2;
+	cube[5].pos.m128_f32[1] = -2;
+	cube[5].pos.m128_f32[2] = 2;
+	cube[5].pos.m128_f32[3] = 1;
+
+	cube[6].pos.m128_f32[0] = 2;
+	cube[6].pos.m128_f32[1] = 2;
+	cube[6].pos.m128_f32[2] = 2;
+	cube[6].pos.m128_f32[3] = 1;
+
+	cube[7].pos.m128_f32[0] = -2;
+	cube[7].pos.m128_f32[1] = 2;
+	cube[7].pos.m128_f32[2] = 2;
+	cube[7].pos.m128_f32[3] = 1;
+
+	UINT cubeIndex[36] =
+	{
+		0, 1, 2,
+		2, 3, 0,
+		1, 6, 2,
+		1, 5, 6,
+		5, 7, 6,
+		5, 4, 7,
+		4, 3, 7,
+		4, 0, 3,
+		6, 7, 3,
+		3, 2, 6,
+		0, 4, 5,
+		5, 1, 0
+	};
+
 	light.color = { 1,1,1,1 };
 	light.direction = { -1.0f, -0.75f, 0.0f };
 
@@ -326,6 +394,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	light.spotRadius = 0.93f;
 
 	CreateDDSTextureFromFile(device, L"moon.dds", nullptr, &groundshaderView, 0);
+	CreateDDSTextureFromFile(device, L"Skybox.dds", nullptr, &skyshaderView, 0);
 
 	groundBufferdesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundBufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -333,6 +402,13 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundBufferdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
 	groundBufferdesc.MiscFlags = 0;
 	groundBufferdesc.StructureByteStride = 0;
+
+	skyVertexdesc.Usage = D3D11_USAGE_IMMUTABLE;
+	skyVertexdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	skyVertexdesc.CPUAccessFlags = NULL;
+	skyVertexdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 8;
+	skyVertexdesc.MiscFlags = 0;
+	skyVertexdesc.StructureByteStride = 0;
 
 	lightBufferdesc.Usage = D3D11_USAGE_DYNAMIC;
 	lightBufferdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -355,12 +431,26 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundConstantdesc.MiscFlags = 0;
 	groundConstantdesc.StructureByteStride = 0;
 
+	skyboxDesc.Usage = D3D11_USAGE_DYNAMIC;
+	skyboxDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	skyboxDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	skyboxDesc.ByteWidth = sizeof(World);
+	skyboxDesc.MiscFlags = 0;
+	skyboxDesc.StructureByteStride = 0;
+
 	groundIndexdesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundIndexdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	groundIndexdesc.CPUAccessFlags = NULL;
 	groundIndexdesc.ByteWidth = sizeof(groundIndexes);
 	groundIndexdesc.MiscFlags = 0;
 	groundIndexdesc.StructureByteStride = 0;
+
+	skyIndexdesc.Usage = D3D11_USAGE_IMMUTABLE;
+	skyIndexdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	skyIndexdesc.CPUAccessFlags = NULL;
+	skyIndexdesc.ByteWidth = sizeof(cubeIndex);
+	skyIndexdesc.MiscFlags = 0;
+	skyIndexdesc.StructureByteStride = 0;
 
 	depthDesc.Width = 1280;
 	depthDesc.Height = 720;
@@ -398,6 +488,23 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	stencilViewdesc.Format = DXGI_FORMAT_D32_FLOAT;
 	stencilViewdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	stencilViewdesc.Texture2D.MipSlice = 0;
+	stencilViewdesc.Flags = NULL;
+
+	device->CreateDepthStencilView(depthStencil, &stencilViewdesc, &stencilView);
+
+	skysampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	skysampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	skysampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	skysampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	skysampleDesc.MinLOD = (-FLT_MAX);
+	skysampleDesc.MaxLOD = (FLT_MAX);
+	skysampleDesc.MipLODBias = 0.0f;
+	skysampleDesc.MaxAnisotropy = 1;
+	skysampleDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	skysampleDesc.BorderColor[0] = 1;
+	skysampleDesc.BorderColor[1] = 1;
+	skysampleDesc.BorderColor[2] = 1;
+	skysampleDesc.BorderColor[3] = 1;
 
 	groundsampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	groundsampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -418,6 +525,8 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	view.ViewMatrix = XMMatrixInverse(0, XMMatrixTranslation(0, 5, -10));
 	groundWorld.WorldMatrix = XMMatrixIdentity();
+	skyboxWorld.WorldMatrix = XMMatrixTranslation(0, 0, -1);
+
 
 	XMMATRIX projection;
 
@@ -437,17 +546,32 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	InitData.pSysMem = &view;
 	device->CreateBuffer(&viewConstdesc, &InitData, &viewConstant);
 
+	// skybox vertex
+	InitData.pSysMem = cube;
+	device->CreateBuffer(&skyVertexdesc, &InitData, &skyVertex);
+	//ground vertex
+	InitData.pSysMem = ground;
+	device->CreateBuffer(&groundBufferdesc, &InitData, &groundBuffer);
+
 	InitData.pSysMem = &groundWorld;
 	device->CreateBuffer(&groundConstantdesc, &InitData, &groundConstant);
 
+	InitData.pSysMem = &skyboxWorld;
+	device->CreateBuffer(&skyboxDesc, &InitData, &skyboxBuffer);
+
 	InitData.pSysMem = groundIndexes;
 	device->CreateBuffer(&groundIndexdesc, &InitData, &groundIndex);
+
+	InitData.pSysMem = cubeIndex;
+	device->CreateBuffer(&skyIndexdesc, &InitData, &skyIndex);
 
 	InitData.pSysMem = &light;
 	device->CreateBuffer(&lightBufferdesc, &InitData, &lightBuffer);
 #pragma endregion
 
 	device->CreateVertexShader(GroundShader_VS, sizeof(GroundShader_VS), nullptr, &groundVertshader);
+	device->CreateVertexShader(SkyboxShader_VS, sizeof(SkyboxShader_VS), nullptr, &skyboxVertShader);
+	device->CreatePixelShader(SkyboxShader_PS, sizeof(SkyboxShader_PS), nullptr, &skyboxPixShader);
 	device->CreatePixelShader(GroundShader_PS, sizeof(GroundShader_PS), nullptr, &groundPixshader);
 
 	D3D11_INPUT_ELEMENT_DESC groundLayout[] =
@@ -459,95 +583,102 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	};
 
+	D3D11_INPUT_ELEMENT_DESC skyboxLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "UVW", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+
+	};
+
+	device->CreateSamplerState(&skysampleDesc, &skyboxSample);
 	device->CreateSamplerState(&groundsampleDesc, &groundSample);
 
 
 	device->CreateInputLayout(groundLayout, ARRAYSIZE(groundLayout), GroundShader_VS, sizeof(GroundShader_VS), &groundInputlayout);
-	
-	//vector<FBXVertex>* test = new vector<FBXVertex>;
-	//LoadFBX(m_fbxManager, "bone.fbx", test);
+	device->CreateInputLayout(skyboxLayout, ARRAYSIZE(skyboxLayout), SkyboxShader_VS, sizeof(SkyboxShader_VS), &skyboxInputLayout);
 
 }
 bool WIN_APP::Run()
 {
 	view.ViewMatrix = XMMatrixInverse(0, view.ViewMatrix);
 
-	//light.camPosition = { toShader.ViewMatrix.r[3].m128_f32[0], toShader.ViewMatrix.r[3].m128_f32[1], toShader.ViewMatrix.r[3].m128_f32[2], toShader.ViewMatrix.r[3].m128_f32[3] };
+	light.camPosition = { view.ViewMatrix.r[3].m128_f32[0], view.ViewMatrix.r[3].m128_f32[1], view.ViewMatrix.r[3].m128_f32[2], view.ViewMatrix.r[3].m128_f32[3] };
 
 #pragma region Camera and Light Controls
 	if (GetAsyncKeyState(VK_SPACE))
 	{
-		XMMATRIX up = XMMatrixTranslation(0, 0.1f * 2, 0);
+		XMMATRIX up = XMMatrixTranslation(0, 0.01f * 2, 0);
 		view.ViewMatrix = XMMatrixMultiply(up, view.ViewMatrix);
 	}
 	if (GetAsyncKeyState(VK_LCONTROL))
 	{
-		XMMATRIX down = XMMatrixTranslation(0, -0.1f * 2, 0);
+		XMMATRIX down = XMMatrixTranslation(0, -0.01f * 2, 0);
 		view.ViewMatrix = XMMatrixMultiply(down, view.ViewMatrix);
 	}
 	if (GetAsyncKeyState('A'))
 	{
-		XMMATRIX left = XMMatrixTranslation(-0.1f * 2, 0, 0);
+		XMMATRIX left = XMMatrixTranslation(-0.01f * 2, 0, 0);
 		view.ViewMatrix = XMMatrixMultiply(left, view.ViewMatrix);
 	}
 	if (GetAsyncKeyState('D'))
 	{
-		XMMATRIX right = XMMatrixTranslation(0.1f * 2, 0, 0);
+		XMMATRIX right = XMMatrixTranslation(0.01f * 2, 0, 0);
 		view.ViewMatrix = XMMatrixMultiply(right, view.ViewMatrix);
 	}
 
 	if (GetAsyncKeyState('W'))
 	{
-		XMMATRIX forward = XMMatrixTranslation(0, 0, 0.1f * 2);
+		XMMATRIX forward = XMMatrixTranslation(0, 0, 0.01f * 2);
 		view.ViewMatrix = XMMatrixMultiply(forward, view.ViewMatrix);
 	}
 
 	if (GetAsyncKeyState('S'))
 	{
-		XMMATRIX backward = XMMatrixTranslation(0, 0, -0.1f * 2);
+		XMMATRIX backward = XMMatrixTranslation(0, 0, -0.01f * 2);
 		view.ViewMatrix = XMMatrixMultiply(backward, view.ViewMatrix);
 	}
 
 	if (GetAsyncKeyState(VK_UP))
 	{
-		light.pointPosition = { light.pointPosition.x, light.pointPosition.y, light.pointPosition.z + (float)(0.1f * 2), light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x, light.pointPosition.y, light.pointPosition.z + (float)(0.01f * 2), light.pointPosition.w };
 	}
 	if (GetAsyncKeyState(VK_DOWN))
 	{
-		light.pointPosition = { light.pointPosition.x, light.pointPosition.y, light.pointPosition.z - (float)(0.1f * 2), light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x, light.pointPosition.y, light.pointPosition.z - (float)(0.01f * 2), light.pointPosition.w };
 	}
 	if (GetAsyncKeyState(VK_LEFT))
 	{
-		light.pointPosition = { light.pointPosition.x - (float)(0.1f * 2), light.pointPosition.y, light.pointPosition.z, light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x - (float)(0.01f * 2), light.pointPosition.y, light.pointPosition.z, light.pointPosition.w };
 	}
 	if (GetAsyncKeyState(VK_RIGHT))
 	{
-		light.pointPosition = { light.pointPosition.x + (float)(0.1f * 2), light.pointPosition.y, light.pointPosition.z, light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x + (float)(0.01f * 2), light.pointPosition.y, light.pointPosition.z, light.pointPosition.w };
 	}
 	if (GetAsyncKeyState('I'))
 	{
-		light.pointPosition = { light.pointPosition.x, light.pointPosition.y + (float)(0.1f * 2), light.pointPosition.z, light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x, light.pointPosition.y + (float)(0.01f * 2), light.pointPosition.z, light.pointPosition.w };
 	}
 	if (GetAsyncKeyState('K'))
 	{
-		light.pointPosition = { light.pointPosition.x, light.pointPosition.y - (float)(0.1f * 2), light.pointPosition.z, light.pointPosition.w };
+		light.pointPosition = { light.pointPosition.x, light.pointPosition.y - (float)(0.01f * 2), light.pointPosition.z, light.pointPosition.w };
 	}
 
 	if (GetAsyncKeyState(VK_NUMPAD8))
 	{
-		light.direction = { light.direction.x, light.direction.y + (float)(0.1f), light.direction.z };
+		light.direction = { light.direction.x, light.direction.y + (float)(0.001f), light.direction.z };
 	}
 	if (GetAsyncKeyState(VK_NUMPAD2))
 	{
-		light.direction = { light.direction.x, light.direction.y - (float)(0.1f), light.direction.z };
+		light.direction = { light.direction.x, light.direction.y - (float)(0.001f), light.direction.z };
 	}
 	if (GetAsyncKeyState(VK_NUMPAD4))
 	{
-		light.direction = { light.direction.x - (float)(0.1f), light.direction.y, light.direction.z };
+		light.direction = { light.direction.x - (float)(0.001f), light.direction.y, light.direction.z };
 	}
 	if (GetAsyncKeyState(VK_NUMPAD6))
 	{
-		light.direction = { light.direction.x + (float)(0.1f), light.direction.y, light.direction.z };
+		light.direction = { light.direction.x + (float)(0.001f), light.direction.y, light.direction.z };
 	}
 
 	POINT newPos;
@@ -577,16 +708,19 @@ bool WIN_APP::Run()
 
 	}
 
+	skyboxWorld.WorldMatrix.r[3] = view.ViewMatrix.r[3];
+
 	view.ViewMatrix = XMMatrixInverse(0, view.ViewMatrix);
 
 	point = newPos;
 #pragma endregion
 
-	//deviceContext->ClearDepthStencilView(stencilView, D3D11_CLEAR_DEPTH, 1, 0);
+	deviceContext->ClearDepthStencilView(stencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 
 	D3D11_MAPPED_SUBRESOURCE viewMap;
 	D3D11_MAPPED_SUBRESOURCE groundMap;
+	D3D11_MAPPED_SUBRESOURCE skyboxMap;
 	D3D11_MAPPED_SUBRESOURCE lightMap;
 	UINT stride = sizeof(SIMPLE_VERTEX);
 	UINT offset = 0;
@@ -598,6 +732,10 @@ bool WIN_APP::Run()
 	deviceContext->Map(groundConstant, 0, D3D11_MAP_WRITE_DISCARD, NULL, &groundMap);
 	memcpy_s(groundMap.pData, sizeof(World), &groundWorld, sizeof(World));
 	deviceContext->Unmap(groundConstant, 0);
+
+	deviceContext->Map(skyboxBuffer, 0, D3D11_MAP_WRITE_DISCARD, NULL, &skyboxMap);
+	memcpy_s(skyboxMap.pData, sizeof(World), &skyboxWorld, sizeof(World));
+	deviceContext->Unmap(skyboxBuffer, 0);
 
 	deviceContext->Map(lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, NULL, &lightMap);
 	memcpy_s(lightMap.pData, sizeof(Light), &light, sizeof(Light));
@@ -612,6 +750,21 @@ bool WIN_APP::Run()
 	deviceContext->ClearRenderTargetView(RTV, rgba);
 
 	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &skyboxBuffer);
+	deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+	deviceContext->IASetInputLayout(skyboxInputLayout);
+	deviceContext->VSSetShader(skyboxVertShader, NULL, 0);
+	deviceContext->PSSetShader(skyboxPixShader, NULL, 0);
+	deviceContext->PSSetShaderResources(0, 1, &skyshaderView);
+	deviceContext->PSSetSamplers(0, 1, &skyboxSample);
+	deviceContext->IASetVertexBuffers(0, 1, &skyVertex, &stride, &offset);
+	deviceContext->IASetIndexBuffer(skyIndex, DXGI_FORMAT_R32_UINT, 0);
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->DrawIndexed(36, 0, 0);
+
+	deviceContext->ClearDepthStencilView(stencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
 	deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
