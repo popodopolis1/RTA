@@ -41,6 +41,8 @@ namespace FBXE
 	public:
 		bool succeded = false;
 		std::vector<FBXData> LoadFBX(std::vector<FBXData> outVerts, const char* file);
+		void FbxToBinary(const char* file, const char* outputFileName);
+		std::vector<FBXData> BinaryToVerts(std::vector<FBXData> outVerts, const char* file);
 	};
 }
 

@@ -528,6 +528,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	skyboxWorld.WorldMatrix = XMMatrixTranslation(0, 0, -1);
 
 
+
 	XMMATRIX projection;
 
 	projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(65.0f), (1280.0f/720.0f), 0.1f, 100.0f);

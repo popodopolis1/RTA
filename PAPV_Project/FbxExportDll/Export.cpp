@@ -154,6 +154,109 @@ namespace DllExport
 		mControlPoints.clear();
 	}
 
+	FbxAMatrix Export::GetGeometryTransforms(FbxNode * inNode)
+	{
+		if (!inNode)
+		{
+			throw std::exception("Null for mesh geometry");
+		}
+
+		const FbxVector4 lT = inNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+		const FbxVector4 lR = inNode->GetGeometricRotation(FbxNode::eSourcePivot);
+		const FbxVector4 lS = inNode->GetGeometricScaling(FbxNode::eSourcePivot);
+
+		return FbxAMatrix(lT, lR, lS);
+	}
+
+	void Export::ProcessJointAndAnimations(FbxNode * inNode)
+	{
+		FbxMesh* mesh = inNode->GetMesh();
+		unsigned int numOfDeformers = mesh->GetDeformerCount();
+		FbxAMatrix geometryTransform = GetGeometryTransforms(inNode);
+
+		for (unsigned int i = 0; i < numOfDeformers; ++i)
+		{
+			FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(i, FbxDeformer::eSkin));
+			if (!skin)
+			{
+				continue;
+			}
+
+			unsigned int numOfClusters = skin->GetClusterCount();
+			for (unsigned int x = 0; x < numOfClusters; ++x)
+			{
+				FbxCluster* cluster = skin->GetCluster(x);
+				string jointName = cluster->GetLink()->GetName();
+				unsigned int jointIndex = FindJointIndexUsingName(jointName);
+
+				FbxAMatrix transformMatrix;
+				FbxAMatrix transformLinkMatrix;
+				FbxAMatrix globalBindPoseInverseMatrix;
+				cluster->GetTransformMatrix(transformMatrix);
+				cluster->GetTransformLinkMatrix(transformLinkMatrix);
+				globalBindPoseInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform;
+
+				mSkeleton.mJoints[jointIndex].mGlobalBindposeInverse = globalBindPoseInverseMatrix;
+				mSkeleton.mJoints[jointIndex].mNode = cluster->GetLink();
+
+				unsigned int numOfIndicies = cluster->GetControlPointIndicesCount();
+				for (unsigned int y = 0; y < numOfIndicies; ++y)
+				{
+					BlendingIndexWeightPair blendingIndexWeightPair;
+					blendingIndexWeightPair.mBlendingIndex = jointIndex;
+					blendingIndexWeightPair.mBlendingWeight = cluster->GetControlPointWeights()[y];
+					mControlPoints[cluster->GetControlPointIndices()[i]]->mBlendingInfo.push_back(blendingIndexWeightPair);
+				}
+
+				FbxAnimStack* animStack = mScene->GetSrcObject<FbxAnimStack>(0);
+				FbxString stackName = animStack->GetName();
+				mAnimationName = stackName.Buffer();
+				FbxTakeInfo* info = mScene->GetTakeInfo(stackName);
+				FbxTime start = info->mLocalTimeSpan.GetStart();
+				FbxTime end = info->mLocalTimeSpan.GetStop();
+				mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
+				Keyframe** anim = &mSkeleton.mJoints[jointIndex].mAnimation;
+
+				for (FbxLongLong z = start.GetFrameCount(FbxTime::eFrames24); z <= end.GetFrameCount(FbxTime::eFrames24); ++z)
+				{
+					FbxTime time;
+					time.SetFrame(z, FbxTime::eFrames24);
+					*anim = new Keyframe();
+					(*anim)->mFrameNum = z;
+					FbxAMatrix transformOffset = inNode->EvaluateGlobalTransform(time) * geometryTransform;
+					(*anim)->mGlobalTransform = transformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(time);
+					anim = &((*anim)->mNext);
+				}
+
+			}
+
+		}
+
+		BlendingIndexWeightPair blendingIndexWeightPair;
+		blendingIndexWeightPair.mBlendingIndex = 0;
+		blendingIndexWeightPair.mBlendingWeight = 0;
+		for (auto itr = mControlPoints.begin(); itr != mControlPoints.end(); ++itr)
+		{
+			for (unsigned int i = itr->second->mBlendingInfo.size(); i <= 4; ++i)
+			{
+				itr->second->mBlendingInfo.push_back(blendingIndexWeightPair);
+			}
+		}
+	}
+
+	unsigned int Export::FindJointIndexUsingName(const string & inJointName)
+	{
+		for (unsigned int i = 0; i < mSkeleton.mJoints.size(); ++i)
+		{
+			if (mSkeleton.mJoints[i].mName == inJointName)
+			{
+				return i;
+			}
+		}
+
+		throw std::exception("Skeleton information in FBX file is corrupted.");
+	}
+
 	void Export::ReadUV(FbxMesh * inMesh, int inCtrlPointIndex, int inTextureUVIndex, int inUVLayer, XMFLOAT2 & outUV)
 	{
 		if (inUVLayer >= 2 || inMesh->GetElementUVCount() <= inUVLayer)
