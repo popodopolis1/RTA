@@ -51,7 +51,7 @@ namespace FBXE
 
 		//Turning FBX into vector
 		vector<FBXData> temp;
-		LoadFBX(temp, inFile);
+		temp = LoadFBX(temp, inFile);
 		int len = temp.size();
 
 		//Writing out to binary file
@@ -122,42 +122,39 @@ namespace FBXE
 				if (count == 0 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.verts.x = (float)buff[i];
-					count++;
 				}
 				if (count == 1 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.verts.y = (float)buff[i];
-					count++;
 				}
 				if (count == 2 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.verts.z = (float)buff[i];
-					count++;
 				}
 				if (count == 3 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.norms.x = (float)buff[i];
-					count++;
 				}
 				if (count == 4 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.norms.y = (float)buff[i];
-					count++;
 				}
 				if (count == 5 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.norms.z = (float)buff[i];
-					count++;
 				}
 				if (count == 6 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.uvs.u = (float)buff[i];
-					count++;
 				}
 				if (count == 7 && (buff[i] == ',' || buff[i] == '/'))
 				{
 					test.uvs.v = (float)buff[i];
 					temp.push_back(test);
+				}
+				count++;
+				if (count > 7)
+				{
 					count = 0;
 				}
 			}
