@@ -130,13 +130,16 @@ namespace DllExport
 		void ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDepth, int myIndex, int inParentIndex);
 		void ProcessControlPoints(FbxNode* inNode);
 		void ProcessMesh(FbxNode* inNode);
+		FbxAMatrix GetGeometryTransforms(FbxNode* inNode);
+		void ProcessJointAndAnimations(FbxNode* inNode);
+		unsigned int FindJointIndexUsingName(const string& inJointName);
 		void ReadUV(FbxMesh* inMesh, int inCtrlPointIndex, int inTextureUVIndex, int inUVLayer, XMFLOAT2& outUV);
 		void ReadNormal(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outNormal);
 		void ReadBinormal(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outBinormal);
 		void ReadTangent(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outTangent);
 		Skeleton getSkelton() { return mSkeleton; }
-	private:
 
+	private:
 		FbxManager* mFBXMan;
 		FbxScene* mScene;
 		string inputFilePath;
