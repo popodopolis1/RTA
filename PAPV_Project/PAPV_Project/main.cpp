@@ -51,6 +51,8 @@ class WIN_APP
 
 	XMMATRIX Camera;
 
+	int ModelRendered = 0;
+
 	struct World
 	{
 		XMMATRIX WorldMatrix;
@@ -143,6 +145,9 @@ public:
 	ID3D11VertexShader *boxVertshader;
 	ID3D11PixelShader *boxPixshader;
 
+	ID3D11Buffer* teddyVertex, *teddyIndex;
+	D3D11_BUFFER_DESC teddyvertexBufferDesc, teddyindexBufferDesc;
+	int teddyVertcount;
 
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
@@ -404,6 +409,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(device, L"moon.dds", nullptr, &groundshaderView, 0);
 	CreateDDSTextureFromFile(device, L"Skybox.dds", nullptr, &skyshaderView, 0);
 
+#pragma region Box Loading
 	std::vector<FBXData> fbxVerts;
 	//
 	FBXE::Facade myF;
@@ -446,6 +452,54 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	boxindexBufferDesc.MiscFlags = 0;
 	boxindexBufferDesc.StructureByteStride = 0;
 
+#pragma endregion
+
+#pragma region Teddy Loading
+
+	std::vector<FBXData> teddyfbxVerts;
+
+	FBXE::Facade ted;
+
+
+	teddyfbxVerts = ted.LoadFBX(teddyfbxVerts, "Teddy_Idle.fbx");
+	int tedVerts = teddyfbxVerts.size();
+	teddyVertcount = tedVerts;
+	int tedIndexes = tedVerts;
+
+	SIMPLE_VERTEX* teddyvertices = new SIMPLE_VERTEX[tedVerts];
+
+	unsigned int* teddyindices = new unsigned int[tedIndexes];
+
+	FBXData* tedarr = &teddyfbxVerts[0];
+
+	for (int i = 0; i < tedVerts; i++)
+	{
+		teddyvertices[i].pos = { tedarr[i].verts.x, tedarr[i].verts.y, tedarr[i].verts.z, 0.0f };
+		teddyvertices[i].color = { 0, 0, 0, 0 };
+		teddyvertices[i].uv.x = tedarr[i].uvs.u;
+		teddyvertices[i].uv.y = tedarr[i].uvs.v;
+		teddyvertices[i].normal.x = tedarr[i].norms.x;
+		teddyvertices[i].normal.y = tedarr[i].norms.y;
+		teddyvertices[i].normal.z = tedarr[i].norms.z;
+
+		teddyindices[i] = i;
+	}
+
+	teddyvertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	teddyvertexBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX)*tedVerts;
+	teddyvertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	teddyvertexBufferDesc.CPUAccessFlags = 0;
+	teddyvertexBufferDesc.MiscFlags = 0;
+	teddyvertexBufferDesc.StructureByteStride = 0;
+	
+	teddyindexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	teddyindexBufferDesc.ByteWidth = sizeof(unsigned long)*tedIndexes;
+	teddyindexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	teddyindexBufferDesc.CPUAccessFlags = 0;
+	teddyindexBufferDesc.MiscFlags = 0;
+	teddyindexBufferDesc.StructureByteStride = 0;
+
+#pragma endregion
 	groundBufferdesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundBufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	groundBufferdesc.CPUAccessFlags = NULL;
@@ -629,8 +683,16 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	InitData.pSysMem = indices;
 	device->CreateBuffer(&boxindexBufferDesc, &InitData, &boxIndex);
 
+	InitData.pSysMem = teddyvertices;
+	device->CreateBuffer(&teddyvertexBufferDesc, &InitData, &teddyVertex);
+
+	InitData.pSysMem = teddyindices;
+	device->CreateBuffer(&teddyindexBufferDesc, &InitData, &teddyIndex);
+
 	delete[] vertices;
 	delete[] indices;
+	delete[] teddyvertices;
+	delete[] teddyindices;
 	indices = 0; vertices = 0;
 #pragma endregion
 
@@ -784,6 +846,26 @@ bool WIN_APP::Run()
 
 	}
 
+	if (GetAsyncKeyState(0x30))
+	{
+		ModelRendered = 0;
+	}
+
+	if (GetAsyncKeyState(0x31))
+	{
+		ModelRendered = 1;
+	}
+
+	if (GetAsyncKeyState(0x32))
+	{
+		ModelRendered = 2;
+	}
+
+	if (GetAsyncKeyState(0x33))
+	{
+		ModelRendered = 3;
+	}
+
 	skyboxWorld.WorldMatrix.r[3] = view.ViewMatrix.r[3];
 
 	view.ViewMatrix = XMMatrixInverse(0, view.ViewMatrix);
@@ -857,20 +939,41 @@ bool WIN_APP::Run()
 
 	deviceContext->DrawIndexed(12, 0, 0);
 
-	deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
-	deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
-	deviceContext->IASetVertexBuffers(0, 1, &boxVertex, &stride, &offset);
-	deviceContext->IASetIndexBuffer(boxIndex, DXGI_FORMAT_R32_UINT, 0);
-	
-	deviceContext->IASetInputLayout(groundInputlayout);
-	deviceContext->VSSetShader(groundVertshader, NULL, 0);
-	deviceContext->PSSetShader(groundPixshader, NULL, 0);
-	deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
-	deviceContext->PSSetSamplers(0, 1, &groundSample);
-	
-	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	if (ModelRendered == 1)
+	{
+		deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
+		deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+		deviceContext->IASetVertexBuffers(0, 1, &boxVertex, &stride, &offset);
+		deviceContext->IASetIndexBuffer(boxIndex, DXGI_FORMAT_R32_UINT, 0);
 
-	deviceContext->DrawIndexed(vertCount, 0, 0);
+		deviceContext->IASetInputLayout(groundInputlayout);
+		deviceContext->VSSetShader(groundVertshader, NULL, 0);
+		deviceContext->PSSetShader(groundPixshader, NULL, 0);
+		deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
+		deviceContext->PSSetSamplers(0, 1, &groundSample);
+
+		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		deviceContext->DrawIndexed(vertCount, 0, 0);
+	}
+
+	if (ModelRendered == 2)
+	{
+		deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
+		deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+		deviceContext->IASetVertexBuffers(0, 1, &teddyVertex, &stride, &offset);
+		deviceContext->IASetIndexBuffer(teddyIndex, DXGI_FORMAT_R32_UINT, 0);
+
+		deviceContext->IASetInputLayout(groundInputlayout);
+		deviceContext->VSSetShader(groundVertshader, NULL, 0);
+		deviceContext->PSSetShader(groundPixshader, NULL, 0);
+		deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
+		deviceContext->PSSetSamplers(0, 1, &groundSample);
+
+		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		deviceContext->DrawIndexed(teddyVertcount, 0, 0);
+	}
 
 	swapChain->Present(0, 0);
 
