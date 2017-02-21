@@ -136,6 +136,14 @@ public:
 	ID3D11Buffer *lightBuffer;
 	D3D11_BUFFER_DESC lightBufferdesc;
 
+	ID3D11Buffer* boxVertex, *boxIndex;
+	D3D11_BUFFER_DESC boxvertexBufferDesc, boxindexBufferDesc;
+	int vertCount;
+	ID3D11InputLayout *boxInputLayout;
+	ID3D11VertexShader *boxVertshader;
+	ID3D11PixelShader *boxPixshader;
+
+
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
@@ -396,6 +404,48 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(device, L"moon.dds", nullptr, &groundshaderView, 0);
 	CreateDDSTextureFromFile(device, L"Skybox.dds", nullptr, &skyshaderView, 0);
 
+	std::vector<FBXData> fbxVerts;
+	//
+	FBXE::Facade myF;
+	fbxVerts = myF.LoadFBX(fbxVerts, "Box_Idle.fbx");
+	//getIndices
+	
+	int m_vertexCount = fbxVerts.size();
+	vertCount = m_vertexCount;
+	int m_indexCount = m_vertexCount;
+	
+	SIMPLE_VERTEX* vertices = new SIMPLE_VERTEX[m_vertexCount];
+	
+	unsigned int* indices = new unsigned int[m_indexCount];
+	
+	FBXData* arr = &fbxVerts[0];
+	for (int i = 0; i < m_vertexCount; i++)
+	{
+		vertices[i].pos = { arr[i].verts.x, arr[i].verts.y, arr[i].verts.z, 0.0f };
+		vertices[i].color = { 0, 0, 0, 0 };
+		vertices[i].uv.x = arr[i].uvs.u;
+		vertices[i].uv.y = arr[i].uvs.v;
+		vertices[i].normal.x = arr[i].norms.x;
+		vertices[i].normal.y = arr[i].norms.y;
+		vertices[i].normal.z = arr[i].norms.z;
+
+		indices[i] = i;
+	}
+
+	boxvertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	boxvertexBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX)*m_vertexCount;
+	boxvertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	boxvertexBufferDesc.CPUAccessFlags = 0;
+	boxvertexBufferDesc.MiscFlags = 0;
+	boxvertexBufferDesc.StructureByteStride = 0;
+	
+	boxindexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	boxindexBufferDesc.ByteWidth = sizeof(unsigned long)*m_indexCount;
+	boxindexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	boxindexBufferDesc.CPUAccessFlags = 0;
+	boxindexBufferDesc.MiscFlags = 0;
+	boxindexBufferDesc.StructureByteStride = 0;
+
 	groundBufferdesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundBufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	groundBufferdesc.CPUAccessFlags = NULL;
@@ -567,6 +617,16 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	InitData.pSysMem = &light;
 	device->CreateBuffer(&lightBufferdesc, &InitData, &lightBuffer);
+
+	InitData.pSysMem = vertices;
+	device->CreateBuffer(&boxvertexBufferDesc, &InitData, &boxVertex);
+	
+	InitData.pSysMem = indices;
+	device->CreateBuffer(&boxindexBufferDesc, &InitData, &boxIndex);
+
+	delete[] vertices;
+	delete[] indices;
+	indices = 0; vertices = 0;
 #pragma endregion
 
 	device->CreateVertexShader(GroundShader_VS, sizeof(GroundShader_VS), nullptr, &groundVertshader);
@@ -591,12 +651,23 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	};
 
+	D3D11_INPUT_ELEMENT_DESC boxLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+
+	};
+
+
 	device->CreateSamplerState(&skysampleDesc, &skyboxSample);
 	device->CreateSamplerState(&groundsampleDesc, &groundSample);
 
 
 	device->CreateInputLayout(groundLayout, ARRAYSIZE(groundLayout), GroundShader_VS, sizeof(GroundShader_VS), &groundInputlayout);
 	device->CreateInputLayout(skyboxLayout, ARRAYSIZE(skyboxLayout), SkyboxShader_VS, sizeof(SkyboxShader_VS), &skyboxInputLayout);
+	device->CreateInputLayout(boxLayout, ARRAYSIZE(boxLayout), GroundShader_VS, sizeof(GroundShader_VS), &boxInputLayout);
 
 }
 bool WIN_APP::Run()
@@ -780,6 +851,21 @@ bool WIN_APP::Run()
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	deviceContext->DrawIndexed(12, 0, 0);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
+	deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+	deviceContext->IASetVertexBuffers(0, 1, &boxVertex, &stride, &offset);
+	deviceContext->IASetIndexBuffer(boxIndex, DXGI_FORMAT_R32_UINT, 0);
+	
+	deviceContext->IASetInputLayout(groundInputlayout);
+	deviceContext->VSSetShader(groundVertshader, NULL, 0);
+	deviceContext->PSSetShader(groundPixshader, NULL, 0);
+	deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
+	deviceContext->PSSetSamplers(0, 1, &groundSample);
+	
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->DrawIndexed(vertCount, 0, 0);
 
 	swapChain->Present(0, 0);
 
