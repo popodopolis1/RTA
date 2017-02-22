@@ -14,6 +14,14 @@ struct Vertex
 	float z;
 };
 
+struct JointVertex
+{
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
 struct Normal
 {
 	float x;
@@ -43,6 +51,7 @@ namespace FBXE
 		std::vector<FBXData> LoadFBX(std::vector<FBXData> outVerts, const char* file);
 		void FbxToBinary(const char* file, const char* outputFileName);
 		std::vector<FBXData> BinaryToVerts(std::vector<FBXData> outVerts, const char* file);
+		
 	};
 }
 

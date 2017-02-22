@@ -527,11 +527,13 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundWorld.WorldMatrix = XMMatrixIdentity();
 	skyboxWorld.WorldMatrix = XMMatrixTranslation(0, 0, -1);
 
-	vector<FBXData> test;
-	FBXE::Facade fac;
-
-	test = fac.LoadFBX(test, "Bone.fbx");
-	fac.FbxToBinary("Bone.fbx", "temp.bin");
+	//vector<FBXData> test;
+	//vector<FBXData> test2;
+	//FBXE::Facade fac;
+	//
+	//test = fac.LoadFBX(test, "Bone.fbx");
+	//fac.FbxToBinary("Bone.fbx", "temp.bin");
+	//test2 = fac.BinaryToVerts(test2, "temp.bin");
 
 	XMMATRIX projection;
 

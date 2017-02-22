@@ -62,36 +62,36 @@ namespace FBXE
 			for (unsigned int i = 0; i < len; i++)
 			{
 				string combine;
-				char a = temp[i].verts.x;
-				combine.push_back(a);
+				string a = to_string(temp[i].verts.x);
+				combine.append(a);
 				combine.push_back(',');
 
-				char b = temp[i].verts.y;
-				combine.push_back(b);
+				string b = to_string(temp[i].verts.y);
+				combine.append(b);
 				combine.push_back(',');
 
-				char c = temp[i].verts.z;
-				combine.push_back(c);
+				string c = to_string(temp[i].verts.z);
+				combine.append(c);
 				combine.push_back(',');
 
-				char d = temp[i].norms.x;
-				combine.push_back(d);
+				string d = to_string(temp[i].norms.x);
+				combine.append(d);
 				combine.push_back(',');
 
-				char e = temp[i].norms.y;
-				combine.push_back(e);
+				string e = to_string(temp[i].norms.y);
+				combine.append(e);
 				combine.push_back(',');
 
-				char f = temp[i].norms.z;
-				combine.push_back(f);
+				string f = to_string(temp[i].norms.z);
+				combine.append(f);
 				combine.push_back(',');
 
-				char g = temp[i].uvs.u;
-				combine.push_back(g);
+				string g = to_string(temp[i].uvs.u);
+				combine.append(g);
 				combine.push_back(',');
 
-				char h = temp[i].uvs.v;
-				combine.push_back(h);
+				string h = to_string(temp[i].uvs.v);
+				combine.append(h);
 				combine.push_back('/');
 
 				file.write(combine.c_str(), combine.size());
@@ -99,7 +99,7 @@ namespace FBXE
 			file.close();
 		}
 	}
-	std::vector<FBXData> Facade::BinaryToVerts(std::vector<FBXData> outVerts, const char * file)
+	std::vector<FBXData> Facade::BinaryToVerts(std::vector<FBXData> outVerts, const char* file)
 	{
 		vector<FBXData> temp;
 		int count = 0;
