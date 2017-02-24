@@ -85,6 +85,8 @@ class WIN_APP
 	View view;
 	World groundWorld;
 	World skyboxWorld;
+	World boxWorld;
+	vector<World> boneWorld;
 	Light light;
 
 public:
@@ -170,6 +172,11 @@ public:
 	ID3D11SamplerState *boneSample;
 	D3D11_SAMPLER_DESC bonesampleDesc;
 
+	ID3D11Buffer *boxConstant;
+	D3D11_BUFFER_DESC boxConstantdesc;
+
+	vector<ID3D11Buffer*> boneConstant;
+	D3D11_BUFFER_DESC boneConstantdesc;
 
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
@@ -610,6 +617,20 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundConstantdesc.MiscFlags = 0;
 	groundConstantdesc.StructureByteStride = 0;
 
+	boxConstantdesc.Usage = D3D11_USAGE_DYNAMIC;
+	boxConstantdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	boxConstantdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	boxConstantdesc.ByteWidth = sizeof(World);
+	boxConstantdesc.MiscFlags = 0;
+	boxConstantdesc.StructureByteStride = 0;
+
+	boneConstantdesc.Usage = D3D11_USAGE_DYNAMIC;
+	boneConstantdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	boneConstantdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	boneConstantdesc.ByteWidth = sizeof(World);
+	boneConstantdesc.MiscFlags = 0;
+	boneConstantdesc.StructureByteStride = 0;
+
 	skyboxDesc.Usage = D3D11_USAGE_DYNAMIC;
 	skyboxDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	skyboxDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -747,6 +768,21 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	view.ViewMatrix = XMMatrixInverse(0, XMMatrixTranslation(0, 5, -10));
 	groundWorld.WorldMatrix = XMMatrixIdentity();
 	skyboxWorld.WorldMatrix = XMMatrixTranslation(0, 0, -1);
+	boxWorld.WorldMatrix = XMMatrixIdentity();
+	
+	for (size_t i = 0; i < joints.size(); i++)
+	{
+		World bone;
+		JointVertex boneJoint;
+		boneJoint = joints[i];
+		bone.WorldMatrix = XMMatrixIdentity();
+		bone.WorldMatrix.r[3].m128_f32[0] = boneJoint.x;
+		bone.WorldMatrix.r[3].m128_f32[1] = boneJoint.y;
+		bone.WorldMatrix.r[3].m128_f32[2] = boneJoint.z;
+		bone.WorldMatrix.r[3].m128_f32[3] = boneJoint.w;
+
+		boneWorld.push_back(bone);
+	}
 
 	XMMATRIX projection;
 
@@ -778,6 +814,17 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	InitData.pSysMem = &skyboxWorld;
 	device->CreateBuffer(&skyboxDesc, &InitData, &skyboxBuffer);
+
+	InitData.pSysMem = &boxWorld;
+	device->CreateBuffer(&boxConstantdesc, &InitData, &boxConstant);
+
+	for (size_t i = 0; i < joints.size(); i++)
+	{
+		InitData.pSysMem = &boneWorld[i];
+		ID3D11Buffer *bone;
+		device->CreateBuffer(&boneConstantdesc, &InitData, &bone);
+		boneConstant.push_back(bone);
+	}
 
 	InitData.pSysMem = groundIndexes;
 	device->CreateBuffer(&groundIndexdesc, &InitData, &groundIndex);
@@ -1006,6 +1053,7 @@ bool WIN_APP::Run()
 	D3D11_MAPPED_SUBRESOURCE groundMap;
 	D3D11_MAPPED_SUBRESOURCE skyboxMap;
 	D3D11_MAPPED_SUBRESOURCE lightMap;
+	D3D11_MAPPED_SUBRESOURCE boxMap;
 	UINT stride = sizeof(SIMPLE_VERTEX);
 	UINT offset = 0;
 
@@ -1017,6 +1065,10 @@ bool WIN_APP::Run()
 	memcpy_s(groundMap.pData, sizeof(World), &groundWorld, sizeof(World));
 	deviceContext->Unmap(groundConstant, 0);
 
+	deviceContext->Map(boxConstant, 0, D3D11_MAP_WRITE_DISCARD, NULL, &boxMap);
+	memcpy_s(boxMap.pData, sizeof(World), &boxWorld, sizeof(World));
+	deviceContext->Unmap(boxConstant, 0);
+
 	deviceContext->Map(skyboxBuffer, 0, D3D11_MAP_WRITE_DISCARD, NULL, &skyboxMap);
 	memcpy_s(skyboxMap.pData, sizeof(World), &skyboxWorld, sizeof(World));
 	deviceContext->Unmap(skyboxBuffer, 0);
@@ -1024,6 +1076,15 @@ bool WIN_APP::Run()
 	deviceContext->Map(lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, NULL, &lightMap);
 	memcpy_s(lightMap.pData, sizeof(Light), &light, sizeof(Light));
 	deviceContext->Unmap(lightBuffer, 0);
+
+	for (size_t i = 0; i < joints.size(); i++)
+	{
+		D3D11_MAPPED_SUBRESOURCE boneMap;
+
+		deviceContext->Map(boneConstant[i], 0, D3D11_MAP_WRITE_DISCARD, NULL, &boneMap);
+		memcpy_s(boneMap.pData, sizeof(World), &boneWorld[i], sizeof(World));
+		deviceContext->Unmap(boneConstant[i], 0);
+	}
 
 	deviceContext->OMSetRenderTargets(1, &RTV, stencilView);
 	deviceContext->OMSetDepthStencilState(stencilState, 1);
@@ -1067,7 +1128,7 @@ bool WIN_APP::Run()
 
 	if (ModelRendered == 1)
 	{
-		deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
+		deviceContext->VSSetConstantBuffers(0, 1, &boxConstant);
 		deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
 		deviceContext->IASetVertexBuffers(0, 1, &boxVertex, &stride, &offset);
 		deviceContext->IASetIndexBuffer(boxIndex, DXGI_FORMAT_R32_UINT, 0);
@@ -1103,20 +1164,23 @@ bool WIN_APP::Run()
 
 	if (ModelRendered == 3)
 	{
-		deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
-		deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
-		deviceContext->IASetVertexBuffers(0, 1, &boneVertex, &stride, &offset);
-		deviceContext->IASetIndexBuffer(boneIndex, DXGI_FORMAT_R32_UINT, 0);
+		for (size_t i = 0; i < joints.size(); i++)
+		{
+			deviceContext->VSSetConstantBuffers(0, 1, &boneConstant[i]);
+			deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+			deviceContext->IASetVertexBuffers(0, 1, &boneVertex, &stride, &offset);
+			deviceContext->IASetIndexBuffer(boneIndex, DXGI_FORMAT_R32_UINT, 0);
 
-		deviceContext->IASetInputLayout(groundInputlayout);
-		deviceContext->VSSetShader(groundVertshader, NULL, 0);
-		deviceContext->PSSetShader(groundPixshader, NULL, 0);
-		deviceContext->PSSetShaderResources(0, 1, &boneshaderView);
-		deviceContext->PSSetSamplers(0, 1, &boneSample);
+			deviceContext->IASetInputLayout(groundInputlayout);
+			deviceContext->VSSetShader(groundVertshader, NULL, 0);
+			deviceContext->PSSetShader(groundPixshader, NULL, 0);
+			deviceContext->PSSetShaderResources(0, 1, &boneshaderView);
+			deviceContext->PSSetSamplers(0, 1, &boneSample);
 
-		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		deviceContext->DrawIndexed(boneVertcount, 0, 0);
+			deviceContext->DrawIndexed(boneVertcount, 0, 0);
+		}
 	}
 
 	swapChain->Present(0, 0);
