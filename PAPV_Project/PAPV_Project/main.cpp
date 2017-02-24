@@ -149,6 +149,8 @@ public:
 	D3D11_BUFFER_DESC teddyvertexBufferDesc, teddyindexBufferDesc;
 	int teddyVertcount;
 
+	std::vector<JointVertex> joints;
+
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
@@ -414,6 +416,8 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	//
 	FBXE::Facade myF;
 	fbxVerts = myF.LoadFBX(fbxVerts, "Box_Idle.fbx");
+	joints = myF.GetJoints(joints, "Box_Idle.fbx");
+
 	//getIndices
 	
 	int m_vertexCount = fbxVerts.size();
@@ -457,11 +461,11 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma region Teddy Loading
 
 	std::vector<FBXData> teddyfbxVerts;
-
 	FBXE::Facade ted;
-
-
+	
+	
 	teddyfbxVerts = ted.LoadFBX(teddyfbxVerts, "Teddy_Idle.fbx");
+	//joints = ted.GetJoints(joints, "Teddy_Idle.fbx");
 	int tedVerts = teddyfbxVerts.size();
 	teddyVertcount = tedVerts;
 	int tedIndexes = tedVerts;

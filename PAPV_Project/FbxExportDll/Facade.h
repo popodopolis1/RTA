@@ -51,7 +51,8 @@ namespace FBXE
 		std::vector<FBXData> LoadFBX(std::vector<FBXData> outVerts, const char* file);
 		void FbxToBinary(const char* file, const char* outputFileName);
 		std::vector<FBXData> BinaryToVerts(std::vector<FBXData> outVerts, const char* file);
-		
+		//std::vector<XMMATRIX> GetJoints(std::vector<XMMATRIX> outJoints, const char* file);
+		std::vector<JointVertex> GetJoints(std::vector<JointVertex> outJoints, const char* file);
 	};
 }
 
