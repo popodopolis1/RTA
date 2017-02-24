@@ -1,5 +1,4 @@
 #pragma once
-#include "fbxsdk.h"
 #include <fbxsdk.h>
 #include <Windows.h>
 #include <vector>
@@ -50,6 +49,14 @@ namespace DllExport
 		Keyframe() :
 			mNext(nullptr)
 		{}
+	};
+
+	struct Animation
+	{
+		string name;
+		float duration;
+		float numFrame;
+		vector<Keyframe*> frames;
 	};
 
 	struct Joint
@@ -132,6 +139,7 @@ namespace DllExport
 		void ProcessMesh(FbxNode* inNode);
 		FbxAMatrix GetGeometryTransforms(FbxNode* inNode);
 		void ProcessJointAndAnimations(FbxNode* inNode);
+		void ProcessGeometry(FbxNode* inNode);
 		unsigned int FindJointIndexUsingName(const string& inJointName);
 		void ReadUV(FbxMesh* inMesh, int inCtrlPointIndex, int inTextureUVIndex, int inUVLayer, XMFLOAT2& outUV);
 		void ReadNormal(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outNormal);
@@ -155,6 +163,7 @@ namespace DllExport
 		FbxLongLong mAnimationLength;
 		string mAnimationName;
 		LARGE_INTEGER mCPUFreq;
+		Animation animation;
 	};
 }
 
