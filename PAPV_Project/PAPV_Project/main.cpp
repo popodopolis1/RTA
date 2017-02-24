@@ -144,10 +144,30 @@ public:
 	ID3D11InputLayout *boxInputLayout;
 	ID3D11VertexShader *boxVertshader;
 	ID3D11PixelShader *boxPixshader;
+	ID3D11ShaderResourceView *boxshaderView;
+
+	ID3D11SamplerState *boxSample;
+	D3D11_SAMPLER_DESC boxsampleDesc;
+
 
 	ID3D11Buffer* teddyVertex, *teddyIndex;
 	D3D11_BUFFER_DESC teddyvertexBufferDesc, teddyindexBufferDesc;
 	int teddyVertcount;
+
+	ID3D11ShaderResourceView *teddyshaderView;
+
+	ID3D11SamplerState *teddySample;
+	D3D11_SAMPLER_DESC teddysampleDesc;
+
+	ID3D11Buffer* boneVertex, *boneIndex;
+	D3D11_BUFFER_DESC bonevertexBufferDesc, boneindexBufferDesc;
+	int boneVertcount;
+
+	ID3D11ShaderResourceView *boneshaderView;
+
+	ID3D11SamplerState *boneSample;
+	D3D11_SAMPLER_DESC bonesampleDesc;
+
 
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
@@ -408,6 +428,9 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	CreateDDSTextureFromFile(device, L"moon.dds", nullptr, &groundshaderView, 0);
 	CreateDDSTextureFromFile(device, L"Skybox.dds", nullptr, &skyshaderView, 0);
+	CreateDDSTextureFromFile(device, L"TestCube.dds", nullptr, &boxshaderView, 0);
+	CreateDDSTextureFromFile(device, L"Teddy_Idle.dds", nullptr, &teddyshaderView, 0);
+	CreateDDSTextureFromFile(device, L"BoneTexture.dds", nullptr, &boneshaderView, 0);
 
 #pragma region Box Loading
 	std::vector<FBXData> fbxVerts;
@@ -453,7 +476,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	boxindexBufferDesc.StructureByteStride = 0;
 
 #pragma endregion
-
+/*
 #pragma region Teddy Loading
 
 	std::vector<FBXData> teddyfbxVerts;
@@ -500,6 +523,54 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	teddyindexBufferDesc.StructureByteStride = 0;
 
 #pragma endregion
+*/
+#pragma region Bone Loading
+
+	vector<FBXData> bonefbxVerts;
+	FBXE::Facade fac;
+
+	bonefbxVerts = fac.LoadFBX(bonefbxVerts, "Bone.fbx");
+	fac.FbxToBinary("Bone.fbx", "temp.bin");
+
+	int boneVerts = bonefbxVerts.size();
+	boneVertcount = boneVerts;
+	int boneIndexes = boneVerts;
+
+	SIMPLE_VERTEX* bonevertices = new SIMPLE_VERTEX[boneVerts];
+
+	unsigned int* boneindices = new unsigned int[boneIndexes];
+
+	FBXData* bonearr = &bonefbxVerts[0];
+
+	for (int i = 0; i < boneVerts; i++)
+	{
+		bonevertices[i].pos = { bonearr[i].verts.x, bonearr[i].verts.y, bonearr[i].verts.z, 0.0f };
+		bonevertices[i].color = { 0, 0, 0, 0 };
+		bonevertices[i].uv.x = bonearr[i].uvs.u;
+		bonevertices[i].uv.y = bonearr[i].uvs.v;
+		bonevertices[i].normal.x = bonearr[i].norms.x;
+		bonevertices[i].normal.y = bonearr[i].norms.y;
+		bonevertices[i].normal.z = bonearr[i].norms.z;
+
+		boneindices[i] = i;
+	}
+
+	bonevertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	bonevertexBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX)*boneVerts;
+	bonevertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bonevertexBufferDesc.CPUAccessFlags = 0;
+	bonevertexBufferDesc.MiscFlags = 0;
+	bonevertexBufferDesc.StructureByteStride = 0;
+	
+	boneindexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	boneindexBufferDesc.ByteWidth = sizeof(unsigned long)*boneIndexes;
+	boneindexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	boneindexBufferDesc.CPUAccessFlags = 0;
+	boneindexBufferDesc.MiscFlags = 0;
+	boneindexBufferDesc.StructureByteStride = 0;
+
+#pragma endregion
+
 	groundBufferdesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundBufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	groundBufferdesc.CPUAccessFlags = NULL;
@@ -623,6 +694,48 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	groundsampleDesc.BorderColor[1] = 1;
 	groundsampleDesc.BorderColor[2] = 1;
 	groundsampleDesc.BorderColor[3] = 1;
+
+	boxsampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	boxsampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	boxsampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	boxsampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	boxsampleDesc.MinLOD = (-FLT_MAX);
+	boxsampleDesc.MaxLOD = (FLT_MAX);
+	boxsampleDesc.MipLODBias = 0.0f;
+	boxsampleDesc.MaxAnisotropy = 1;
+	boxsampleDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	boxsampleDesc.BorderColor[0] = 1;
+	boxsampleDesc.BorderColor[1] = 1;
+	boxsampleDesc.BorderColor[2] = 1;
+	boxsampleDesc.BorderColor[3] = 1;
+
+	teddysampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	teddysampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	teddysampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	teddysampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	teddysampleDesc.MinLOD = (-FLT_MAX);
+	teddysampleDesc.MaxLOD = (FLT_MAX);
+	teddysampleDesc.MipLODBias = 0.0f;
+	teddysampleDesc.MaxAnisotropy = 1;
+	teddysampleDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	teddysampleDesc.BorderColor[0] = 1;
+	teddysampleDesc.BorderColor[1] = 1;
+	teddysampleDesc.BorderColor[2] = 1;
+	teddysampleDesc.BorderColor[3] = 1;
+
+	bonesampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	bonesampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	bonesampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	bonesampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	bonesampleDesc.MinLOD = (-FLT_MAX);
+	bonesampleDesc.MaxLOD = (FLT_MAX);
+	bonesampleDesc.MipLODBias = 0.0f;
+	bonesampleDesc.MaxAnisotropy = 1;
+	bonesampleDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	bonesampleDesc.BorderColor[0] = 1;
+	bonesampleDesc.BorderColor[1] = 1;
+	bonesampleDesc.BorderColor[2] = 1;
+	bonesampleDesc.BorderColor[3] = 1;
 #pragma endregion
 
 	device->CreateDepthStencilView(depthStencil, &stencilViewdesc, &stencilView);
@@ -630,12 +743,6 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	view.ViewMatrix = XMMatrixInverse(0, XMMatrixTranslation(0, 5, -10));
 	groundWorld.WorldMatrix = XMMatrixIdentity();
 	skyboxWorld.WorldMatrix = XMMatrixTranslation(0, 0, -1);
-
-	vector<FBXData> test;
-	FBXE::Facade fac;
-
-	test = fac.LoadFBX(test, "Bone.fbx");
-	fac.FbxToBinary("Bone.fbx", "temp.bin");
 
 	XMMATRIX projection;
 
@@ -683,16 +790,25 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	InitData.pSysMem = indices;
 	device->CreateBuffer(&boxindexBufferDesc, &InitData, &boxIndex);
 
-	InitData.pSysMem = teddyvertices;
-	device->CreateBuffer(&teddyvertexBufferDesc, &InitData, &teddyVertex);
+	//InitData.pSysMem = teddyvertices;
+	//device->CreateBuffer(&teddyvertexBufferDesc, &InitData, &teddyVertex);
+	//
+	//InitData.pSysMem = teddyindices;
+	//device->CreateBuffer(&teddyindexBufferDesc, &InitData, &teddyIndex);
 
-	InitData.pSysMem = teddyindices;
-	device->CreateBuffer(&teddyindexBufferDesc, &InitData, &teddyIndex);
+	InitData.pSysMem = bonevertices;
+	device->CreateBuffer(&bonevertexBufferDesc, &InitData, &boneVertex);
+
+	InitData.pSysMem = boneindices;
+	device->CreateBuffer(&boneindexBufferDesc, &InitData, &boneIndex);
 
 	delete[] vertices;
 	delete[] indices;
-	delete[] teddyvertices;
-	delete[] teddyindices;
+	//delete[] teddyvertices;
+	//delete[] teddyindices;
+	delete[] bonevertices;
+	delete[] boneindices;
+
 	indices = 0; vertices = 0;
 #pragma endregion
 
@@ -730,6 +846,9 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateSamplerState(&skysampleDesc, &skyboxSample);
 	device->CreateSamplerState(&groundsampleDesc, &groundSample);
+	device->CreateSamplerState(&boxsampleDesc, &boxSample);
+	device->CreateSamplerState(&teddysampleDesc, &teddySample);
+	device->CreateSamplerState(&bonesampleDesc, &boneSample);
 
 
 	device->CreateInputLayout(groundLayout, ARRAYSIZE(groundLayout), GroundShader_VS, sizeof(GroundShader_VS), &groundInputlayout);
@@ -846,6 +965,9 @@ bool WIN_APP::Run()
 
 	}
 
+	light.spotPosition = { view.ViewMatrix.r[3].m128_f32[0], view.ViewMatrix.r[3].m128_f32[1], view.ViewMatrix.r[3].m128_f32[2], view.ViewMatrix.r[3].m128_f32[3] };
+	light.spotDirection = { view.ViewMatrix.r[2].m128_f32[0], view.ViewMatrix.r[2].m128_f32[1], view.ViewMatrix.r[2].m128_f32[2], view.ViewMatrix.r[2].m128_f32[3] };
+
 	if (GetAsyncKeyState(0x30))
 	{
 		ModelRendered = 0;
@@ -949,30 +1071,48 @@ bool WIN_APP::Run()
 		deviceContext->IASetInputLayout(groundInputlayout);
 		deviceContext->VSSetShader(groundVertshader, NULL, 0);
 		deviceContext->PSSetShader(groundPixshader, NULL, 0);
-		deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
-		deviceContext->PSSetSamplers(0, 1, &groundSample);
+		deviceContext->PSSetShaderResources(0, 1, &boxshaderView);
+		deviceContext->PSSetSamplers(0, 1, &boxSample);
 
 		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		deviceContext->DrawIndexed(vertCount, 0, 0);
 	}
 
-	if (ModelRendered == 2)
+	//if (ModelRendered == 2)
+	//{
+	//	deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
+	//	deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
+	//	deviceContext->IASetVertexBuffers(0, 1, &teddyVertex, &stride, &offset);
+	//	deviceContext->IASetIndexBuffer(teddyIndex, DXGI_FORMAT_R32_UINT, 0);
+	//
+	//	deviceContext->IASetInputLayout(groundInputlayout);
+	//	deviceContext->VSSetShader(groundVertshader, NULL, 0);
+	//	deviceContext->PSSetShader(groundPixshader, NULL, 0);
+	//	deviceContext->PSSetShaderResources(0, 1, &teddyshaderView);
+	//	deviceContext->PSSetSamplers(0, 1, &teddySample);
+	//
+	//	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//
+	//	deviceContext->DrawIndexed(teddyVertcount, 0, 0);
+	//}
+
+	if (ModelRendered == 3)
 	{
 		deviceContext->VSSetConstantBuffers(0, 1, &groundConstant);
 		deviceContext->VSSetConstantBuffers(1, 1, &viewConstant);
-		deviceContext->IASetVertexBuffers(0, 1, &teddyVertex, &stride, &offset);
-		deviceContext->IASetIndexBuffer(teddyIndex, DXGI_FORMAT_R32_UINT, 0);
+		deviceContext->IASetVertexBuffers(0, 1, &boneVertex, &stride, &offset);
+		deviceContext->IASetIndexBuffer(boneIndex, DXGI_FORMAT_R32_UINT, 0);
 
 		deviceContext->IASetInputLayout(groundInputlayout);
 		deviceContext->VSSetShader(groundVertshader, NULL, 0);
 		deviceContext->PSSetShader(groundPixshader, NULL, 0);
-		deviceContext->PSSetShaderResources(0, 1, &groundshaderView);
-		deviceContext->PSSetSamplers(0, 1, &groundSample);
+		deviceContext->PSSetShaderResources(0, 1, &boneshaderView);
+		deviceContext->PSSetSamplers(0, 1, &boneSample);
 
 		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		deviceContext->DrawIndexed(teddyVertcount, 0, 0);
+		deviceContext->DrawIndexed(boneVertcount, 0, 0);
 	}
 
 	swapChain->Present(0, 0);
