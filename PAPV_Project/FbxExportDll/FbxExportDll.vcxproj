@@ -89,7 +89,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>FBXSDK_SHARED;FBXSDK_SHAREDFBXSDK_SHAREDFBXSDK_SHAREDFBXSDK_SHARED;WIN32;_DEBUG;_WINDOWS;_USRDLL;FBXEXPORTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FBXSDK_SHARED;WIN32;_DEBUG;_WINDOWS;_USRDLL;FBXEXPORTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2016.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -105,7 +105,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>FBXSDK_SHARED;FBXSDK_SHAREDFBXSDK_SHAREDFBXSDK_SHAREDFBXSDK_SHARED;_DEBUG;_WINDOWS;_USRDLL;FBXEXPORTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FBXSDK_SHARED;_DEBUG;_WINDOWS;_USRDLL;FBXEXPORTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2016.1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>

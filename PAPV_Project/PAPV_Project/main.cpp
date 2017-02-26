@@ -170,6 +170,11 @@ public:
 	ID3D11SamplerState *boneSample;
 	D3D11_SAMPLER_DESC bonesampleDesc;
 
+	XMMATRIX bone1;
+	XMMATRIX bone2;
+	XMMATRIX bone3;
+	XMMATRIX bone4;
+
 
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
