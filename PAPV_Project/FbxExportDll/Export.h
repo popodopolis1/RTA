@@ -146,6 +146,7 @@ namespace DllExport
 		void ReadBinormal(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outBinormal);
 		void ReadTangent(FbxMesh* inMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outTangent);
 		Skeleton getSkelton() { return mSkeleton; }
+		Animation getAnimation() { return animation; }
 
 	private:
 		FbxManager* mFBXMan;

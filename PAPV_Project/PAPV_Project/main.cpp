@@ -157,6 +157,7 @@ public:
 	int teddyVertcount;
 
 	std::vector<JointVertex> joints;
+	std::vector<JointVertex> frames;
 
 	ID3D11ShaderResourceView *teddyshaderView;
 
@@ -177,6 +178,9 @@ public:
 
 	vector<ID3D11Buffer*> boneConstant;
 	D3D11_BUFFER_DESC boneConstantdesc;
+
+	unsigned int n = 0;
+	unsigned int f = 0;
 
 	WIN_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
@@ -446,7 +450,10 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	//
 	FBXE::Facade myF;
 	fbxVerts = myF.LoadFBX(fbxVerts, "Box_Idle.fbx");
+	myF.FbxToBinary("Box_Idle.fbx", "Box.bin");
 	joints = myF.GetJoints(joints, "Box_Idle.fbx");
+	frames = myF.GetKeyframes(frames, "Box_Idle.fbx");
+
 
 	//getIndices
 	
@@ -541,7 +548,7 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	FBXE::Facade fac;
 
 	bonefbxVerts = fac.LoadFBX(bonefbxVerts, "Bone.fbx");
-	fac.FbxToBinary("Bone.fbx", "temp.bin");
+	
 
 	int boneVerts = bonefbxVerts.size();
 	boneVertcount = boneVerts;
@@ -907,6 +914,9 @@ WIN_APP::WIN_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateInputLayout(boxLayout, ARRAYSIZE(boxLayout), GroundShader_VS, sizeof(GroundShader_VS), &boxInputLayout);
 
 }
+
+
+
 bool WIN_APP::Run()
 {
 	view.ViewMatrix = XMMatrixInverse(0, view.ViewMatrix);
@@ -916,8 +926,29 @@ bool WIN_APP::Run()
 #pragma region Camera and Light Controls
 	if (GetAsyncKeyState(VK_SPACE))
 	{
-		XMMATRIX up = XMMatrixTranslation(0, 0.01f * 2, 0);
-		view.ViewMatrix = XMMatrixMultiply(up, view.ViewMatrix);
+		//XMMATRIX up = XMMatrixTranslation(0, 0.01f * 2, 0);
+		//view.ViewMatrix = XMMatrixMultiply(up, view.ViewMatrix);
+
+			World bone;
+			JointVertex boneJoint;
+			boneJoint = joints[n];
+			bone.WorldMatrix = XMMatrixIdentity();
+			bone.WorldMatrix.r[3].m128_f32[0] = boneJoint.x + frames[f].x;
+			bone.WorldMatrix.r[3].m128_f32[1] = boneJoint.y + frames[f].y;
+			bone.WorldMatrix.r[3].m128_f32[2] = boneJoint.z + frames[f].z;
+			//bone.WorldMatrix.r[3].m128_f32[3] = boneJoint.w + frames[f].w;
+
+			boneWorld.push_back(bone);
+			n++;
+			if (n > 3)
+			{
+				n = 0;
+			}
+			f++;
+			if (f > 29)
+			{
+				f = 0;
+			}
 	}
 	if (GetAsyncKeyState(VK_LCONTROL))
 	{

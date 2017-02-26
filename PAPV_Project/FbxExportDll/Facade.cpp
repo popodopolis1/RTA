@@ -191,4 +191,30 @@ namespace FBXE
 		}
 		return outJoints;
 	}
+	std::vector<JointVertex> Facade::GetKeyframes(std::vector<JointVertex> outFrames, const char * file)
+	{
+		Export* exporter = new Export();
+		exporter->Initialize();
+		exporter->LoadScene(file);
+		FbxScene* scene = exporter->getScene();
+		FbxNode* node = scene->GetRootNode();
+		int track = scene->GetNodeCount();
+		exporter->ProcessControlPoints(node);
+		exporter->ProcessMesh(scene->GetRootNode());
+		exporter->ProcessSkeletonHierarchy(node);
+		exporter->ProcessJointAndAnimations(node);
+
+		for (int i = 0; i < exporter->getAnimation().numFrame; i++)
+		{
+			FbxAMatrix a = exporter->getAnimation().frames[i]->mGlobalTransform;
+			FbxVector4 b = a.GetRow(3);
+			JointVertex vert;
+			vert.x = b.mData[0];
+			vert.y = b.mData[1];
+			vert.z = b.mData[2];
+			vert.w = b.mData[3];
+			outFrames.push_back(vert);
+		}
+		return outFrames;
+	}
 }
